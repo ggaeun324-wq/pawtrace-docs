@@ -16,6 +16,7 @@
 | **DB** | RDS PostgreSQL 16 (+ PostGIS) |
 | **캐시** | ElastiCache Redis 7 |
 | **스토리지** | S3 (이미지) |
+| **AI** | Amazon Bedrock (managed LLM) 🟡 연동 설계 |
 | **시크릿** | Secrets Manager |
 | **레지스트리** | Amazon ECR |
 | **IaC** | Terraform (S3 + DynamoDB remote state) |
@@ -136,7 +137,37 @@ flowchart TB
 > **왜 4개로 나눴나?** 한 역할이 모든 권한을 가지면 침해 시 피해가 큼.
 > "배포 vs 인프라", "실행 vs 런타임"을 분리해 **폭발 반경(blast radius)** 을 줄였습니다.
 
-## 7. 시크릿 관리
+## 7. AI 통합 — Amazon Bedrock 🤖
+
+PawTrace의 AI 기능(후기 요약·신고 분류·설명 요약·이상 키워드 탐지)은
+**Amazon Bedrock**(완전관리형 LLM 서비스)을 통해 제공하도록 설계되어 있습니다.
+
+```mermaid
+flowchart LR
+    ECS[ECS Task<br/>FastAPI] -->|태스크 역할 권한<br/>bedrock:InvokeModel| BR[Amazon Bedrock<br/>관리형 LLM]
+    BR -->|요약·분류 결과| ECS
+    ECS -. 어댑터로 격리 .-> INT[Integrations 레이어]
+```
+
+**설계 포인트**
+- **권한**: ECS **태스크 역할**에 `bedrock:InvokeModel` 권한이 부여되어 있어,
+  컨테이너가 **키 없이 IAM 역할만으로** Bedrock을 호출 (액세스키 미사용).
+- **네트워크**: Bedrock은 VPC 외부의 **리전 관리형 서비스** → private 서브넷의 ECS가
+  **NAT Gateway**(또는 향후 VPC Endpoint)를 통해 AWS API로 접근.
+- **격리**: 애플리케이션은 AI 호출을 **Integrations 레이어(어댑터)** 로 감싸,
+  제공자(Bedrock ↔ OpenAI 등)를 **교체 가능**하게 설계 ([ARCHITECTURE](./ARCHITECTURE.md) 참고).
+- **모델 선택**: 모델 ID는 **환경변수**로 주입 → 코드 수정 없이 모델 교체 가능.
+
+> **왜 Bedrock인가?** 모델 인프라를 직접 운영하지 않고(서버리스),
+> **IAM 기반 인증**으로 키 관리 부담 없이 AWS 보안 모델에 통합하기 위함.
+> ([DECISIONS](./DECISIONS.md)의 "외부 연동 격리" 원칙과 일치)
+
+**상태**: 🟡 IAM 권한·연동 지점은 인프라에 반영됨 / 실제 호출 로직은 구현 예정 ([ROADMAP](./ROADMAP.md))
+
+> 🔐 **비용·남용 방지 주의**: 운영 전환 시 모델 호출에 **요청 제한(rate limit)·예산 알람**을
+> 두는 것을 권장합니다. (Bedrock은 호출량 기반 과금)
+
+## 8. 시크릿 관리
 
 ```mermaid
 flowchart LR
@@ -149,7 +180,7 @@ flowchart LR
 - ECS 태스크가 **시작 시점에 환경변수로 주입**받음
 - 실행 역할에는 **해당 시크릿 1개만** 읽을 권한 부여
 
-## 8. 상태 관리 (Terraform Remote State)
+## 9. 상태 관리 (Terraform Remote State)
 
 ```mermaid
 flowchart LR
@@ -164,7 +195,7 @@ flowchart LR
 
 > 관련 사례: 로컬 폴더 혼선으로 state가 이원화될 뻔한 사건 → [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 
-## 9. 비용 전략 💰
+## 10. 비용 전략 💰
 
 포트폴리오 환경의 **현실적 비용 관리** 방식:
 
@@ -175,13 +206,13 @@ flowchart LR
 
 > 면접 포인트: *"IaC 덕분에 인프라를 켰다 끄는 것을 비용 통제 수단으로 사용했다."*
 
-## 10. 검증된 사실 ✅
+## 11. 검증된 사실 ✅
 
 - `terraform apply`로 **약 39개 리소스**(VPC~RDS)를 일괄 생성
 - ALB 주소에서 API 엔드포인트가 정상 응답함을 확인
 - 비용 관리를 위해 데모 후 `destroy`
 
-## 11. 추천 스크린샷 📸 (`assets/`)
+## 12. 추천 스크린샷 📸 (`assets/`)
 
 - [ ] `terraform apply` 완료 화면 (`Apply complete! N added`)
 - [ ] AWS 콘솔 — ECS 서비스 RUNNING / 태스크 헬스
