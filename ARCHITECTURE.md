@@ -98,6 +98,10 @@ sequenceDiagram
 핵심: **각 레이어는 자기 책임만** 수행하고 다음 레이어에 위임합니다.
 ALB는 **헬스체크를 통과한 태스크에만** 트래픽을 보냅니다(`/api/v1/health`).
 
+> 아래는 FastAPI가 자동 생성한 OpenAPI 문서(Swagger UI)입니다. API 계약이 코드에서 바로 문서화됩니다.
+
+![Swagger UI — API 자동 문서](./assets/swagger.png)
+
 ## 5. 데이터 모델 (개념도)
 
 > 상세 스키마/필드는 비공개입니다. 아래는 **개념적 관계**만 표현합니다.
