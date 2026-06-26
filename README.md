@@ -47,6 +47,7 @@
 | **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** | 실제로 부딪힌 문제와 해결 과정 | 모든 면접관 |
 | **[FEATURES.md](./FEATURES.md)** | 제품 기능 (비기술) | 채용 담당자 |
 | **[ROADMAP.md](./ROADMAP.md)** | SRE/Cloud 강화 로드맵 | 시니어/CTO |
+| **[IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md)** | MVP 실행 로드맵 + 스프린트 보드 (제품↔구현 정렬) | 시니어/CTO |
 
 ---
 
@@ -175,6 +176,7 @@ pawtrace-docs/
 ├─ TROUBLESHOOTING.md     # 트러블슈팅 사례
 ├─ FEATURES.md            # 제품 기능
 ├─ ROADMAP.md             # 강화 로드맵
+├─ IMPLEMENTATION-PLAN.md # MVP 실행 로드맵 + 스프린트 보드
 ├─ assets/                # 스크린샷·이미지
 └─ diagrams/              # 다이어그램 소스
 ```
