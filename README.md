@@ -1,236 +1,181 @@
 <div align="center">
 
-# 🐾 PawTrace — Pet Adoption Transparency Platform
+# 🐾 PawTrace
 
-**Know where every paw begins.**
+### *Know where every paw begins.*
 
-신뢰할 수 있는 보호소와 강아지의 이력을 **지도와 타임라인**으로 투명하게 보여주어,
-건강한 입양 문화를 돕는 풀스택 + 클라우드 네이티브 플랫폼.
+보호소와 강아지의 **이력을 지도와 타임라인으로 투명하게** 보여주어,
+신뢰할 수 있는 입양 문화를 돕는 플랫폼입니다.
+
+📘 **처음 보시나요? → [전체 구조 문서 (ARCHITECTURE.md)](ARCHITECTURE.md)** 에서 아키텍처 전체를 쉬운 용어로 설명합니다.
 
 <br/>
 
-![Status](https://img.shields.io/badge/status-active-success)
-![Cloud](https://img.shields.io/badge/cloud-AWS-orange)
-![IaC](https://img.shields.io/badge/IaC-Terraform-purple)
-![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-blue)
-![Container](https://img.shields.io/badge/container-Docker%20%7C%20ECS%20Fargate-blue)
-![Auth](https://img.shields.io/badge/auth-OIDC_keyless-green)
+![PawTrace 홈 화면 동작 흐름](assets/home-demo.gif)
+
+*공고 마감이 가까운 친구들 → 대한민국 보호소 지도 → 보호소 지도 탭 → 해피ing 까지의 실제 동작 흐름*
 
 > 📌 이 저장소는 **공개용 문서 저장소**입니다. 실제 소스 코드는 비공개로 관리되며,
 > 채용 담당자와 기술 면접관이 **코드를 보지 않고도 프로젝트 전체를 이해**할 수 있도록 설계되었습니다.
-
-<br/>
-
-### 🖼️ 미리보기
-
-| 메인 (오늘의 친구) | 강아지 여권 (타임라인) |
-|:---:|:---:|
-| ![home](./assets/home.png) | ![passport](./assets/passport.png) |
-| **지도 기반 보호소 검색** | **API 자동 문서 (Swagger)** |
-| ![map](./assets/map.png) | ![swagger](./assets/swagger.png) |
-
-> 우측 상단 **`● 실시간 API`** 뱃지 = 백엔드 API와 실제 연결된 상태.
-> 연결 실패 시 자동으로 데모 데이터로 폴백(progressive enhancement)합니다.
 
 </div>
 
 ---
 
-## 📚 문서 가이드
+## 🌟 PawTrace는 무엇이 다른가요?
 
-| 문서 | 내용 | 추천 독자 |
+기존 입양 앱들은 대부분 **"지금 입양 가능한 아이 목록"** 을 보여주는 데 그칩니다.
+PawTrace는 **목록이 아니라 "이력과 신뢰"** 를 보여줍니다.
+
+| | 기존 입양 앱 | 🐾 PawTrace |
 |---|---|---|
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | 시스템 아키텍처, 레이어 설계, 요청 생명주기 | 기술 면접관 |
-| **[INFRASTRUCTURE.md](./INFRASTRUCTURE.md)** | AWS 인프라, 네트워크, 보안, IAM 설계 | Cloud/SRE 면접관 |
-| **[CI-CD.md](./CI-CD.md)** | 배포 파이프라인 2종, OIDC, GitOps, 보안 게이트 | DevOps 면접관 |
-| **[DECISIONS.md](./DECISIONS.md)** | 주요 기술 의사결정 기록 (ADR) | 시니어/CTO |
-| **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** | 실제로 부딪힌 문제와 해결 과정 | 모든 면접관 |
-| **[FEATURES.md](./FEATURES.md)** | 제품 기능 (비기술) | 채용 담당자 |
-| **[ROADMAP.md](./ROADMAP.md)** | SRE/Cloud 강화 로드맵 | 시니어/CTO |
-| **[IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md)** | MVP 실행 로드맵 + 스프린트 보드 (제품↔구현 정렬) | 시니어/CTO |
+| 핵심 | 입양 가능한 강아지 목록(스냅샷) | 강아지의 **출처와 이력 타임라인** |
+| 신뢰 | 보호소 정보 나열 | **투명성 지표(신뢰도 점수)** + 근거 공개 |
+| 데이터 | 일방향 제공 | 사용자 신고 → 관리자 검증 **참여형 루프** |
+| 정보 해소 | 직접 읽어야 함 | **AI 요약·분류**로 정보 비대칭 완화 |
+
+> 한 줄 차별점: **다른 앱은 '입양 가능한 강아지'를 보여주고, PawTrace는 '믿을 수 있는 출처와 이력'을 보여줍니다.**
 
 ---
 
-## 1. 프로젝트 개요 (Overview)
+## ✨ 핵심 기능
 
-PawTrace는 입양을 고려하는 사용자가 **신뢰할 수 있는 보호소**와 **강아지의 전 생애 이력**을
-지도·타임라인 형태로 확인할 수 있게 하는 서비스입니다.
+- 🗺️ **지도 기반 보호소 검색** — 현재 위치/지역 기준, 정부 등록 여부·신뢰도 표시
+- 🐶 **강아지 이력 타임라인** — 구조 → 입소 → 건강검진 → 예방접종 → 중성화 → 입양
+- 🙋 **신고/검증 시스템** — 사용자가 의심 사례를 신고하면 관리자가 검토 후 신뢰도에 반영
+- 🤖 **AI 보조** — 신고 분류, 보호소 설명 요약(이상 징후 키워드 탐지는 확장 단계)
+- 🛠️ **관리자 기능** — 보호소·강아지·신고·신뢰도 관리
 
-- **지도 기반 보호소 검색** — 지역별 보호소 조회 / 정부 등록 여부 / 투명성 지표
-- **강아지 이력 타임라인** — 구조 → 입소 → 건강검진 → 예방접종 → 중성화 → 입양 가능 상태
-- **신고/검증 시스템** — 사용자가 의심 사례를 신고, 관리자가 검토 후 투명성 지표에 반영
-- **AI 보조** — 입양 후기 요약, 신고 분류, 보호소 설명 요약, 이상 키워드 탐지 *(설계)*
+> ⚖️ PawTrace는 특정 업체를 "불법"으로 단정하지 않습니다. 공공데이터·사용자 신고·관리자 검증에 기반한
+> **"검증 필요 / 투명성 낮음 / 공공데이터 불일치"** 같은 **투명성 지표**로만 표현합니다.
 
-> ⚠️ 이 서비스는 특정 업체를 단정하거나 비난하지 않습니다.
-> **공공데이터 · 사용자 신고 · 관리자 검증**에 기반한 **"투명성 지표"** 만을 제공합니다.
+---
 
-## 2. 왜 이 프로젝트를 만들었나 (Why)
-
-입양 과정에서 강아지의 **출처와 이력 정보가 단절·불투명**한 경우가 많습니다.
-PawTrace는 흩어진 정보를 한곳에 모아, 사용자가 **정보에 근거해 판단**할 수 있는 환경을 만듭니다.
-
-엔지니어링 관점에서는 **"작동하는 서비스 + 설명 가능한 프로덕션급 아키텍처"** 를 목표로,
-실무에서 쓰는 클라우드 네이티브 패턴(IaC, GitOps, 키리스 인증, 보안 게이트)을 직접 구현했습니다.
-
-## 3. 해결하는 문제 (Problems It Solves)
-
-| 문제 | PawTrace의 접근 |
-|---|---|
-| 강아지 출처·이력 정보가 흩어져 있음 | 단일 타임라인으로 통합 |
-| 보호소 신뢰도를 판단할 근거가 없음 | 공공데이터·검증 기반 투명성 지표 |
-| 의심 사례를 제보할 채널이 없음 | 신고/검증 워크플로 |
-| 단정적 표현의 법적 리스크 | "검증 필요 / 투명성 낮음" 등 중립적 지표화 |
-
-## 4. 핵심 기능 (Key Features)
-
-자세한 내용은 **[FEATURES.md](./FEATURES.md)** 참고.
-
-- 🗺️ 지도 기반 보호소 검색 + 상세
-- 📋 강아지 개별 이력 타임라인 ("강아지 여권")
-- 🚩 신고/검증 시스템
-- 🤖 AI 요약·분류 보조 *(설계 단계)*
-- 🛠️ 관리자 콘솔 *(설계 단계)*
-
-## 5. 시스템 아키텍처 (System Architecture)
-
-```mermaid
-flowchart LR
-    User([사용자]) --> CF[프론트엔드<br/>Next.js / 프로토타입]
-    CF -->|HTTPS / REST| ALB[Application<br/>Load Balancer]
-    ALB --> ECS[ECS Fargate<br/>FastAPI 컨테이너]
-    ECS --> RDS[(RDS<br/>PostgreSQL + PostGIS)]
-    ECS --> REDIS[(ElastiCache<br/>Redis)]
-    ECS --> S3[(S3<br/>이미지 저장)]
-    ECS -. AI 호출 .-> AI[Amazon Bedrock]
-    ECS -->|로그/메트릭| CW[CloudWatch]
-```
-
-전체 다이어그램과 레이어 설명은 **[ARCHITECTURE.md](./ARCHITECTURE.md)** 참고.
-
-## 6. 기술 스택 (Tech Stack)
+## 🧱 기술 스택
 
 | 영역 | 기술 |
 |---|---|
-| **Backend** | FastAPI (Python 3.12), Clean Architecture |
-| **Frontend** | Next.js (스캐폴드) + HTML/CSS 프로토타입 |
-| **Database** | PostgreSQL 16 + PostGIS (위치 검색) |
-| **Cache** | Redis (ElastiCache) |
-| **Container** | Docker (multi-stage), 비루트 실행 |
-| **Orchestration** | AWS ECS Fargate (서버리스 컨테이너) |
-| **IaC** | Terraform (S3 + DynamoDB remote state) |
-| **CI/CD** | GitHub Actions (앱 배포 + 인프라 GitOps) |
-| **Auth** | OIDC 키리스 (GitHub → AWS) |
-| **Registry** | Amazon ECR |
-| **Secrets** | AWS Secrets Manager |
-| **관측성** | CloudWatch Logs / Container Insights |
-| **DevSecOps** | Trivy · Syft(SBOM) · Hadolint · GitGuardian · SonarQube · Codecov · Dependabot · pre-commit |
-| **AI** | Amazon Bedrock *(설계)* |
+| Frontend | Next.js, Kakao Map SDK |
+| Backend | FastAPI (Python) |
+| Database | PostgreSQL + PostGIS |
+| Cache | Redis |
+| AI | Amazon Bedrock / OpenAI API |
+| Infra | Docker, AWS ECS Fargate (→ EKS 확장), **Terraform (IaC)** |
+| CI/CD | GitHub Actions — **앱 배포(`deploy.yml`) + 인프라 배포(`infra.yml`, GitOps)** |
+| 인증 | **OIDC 키리스** (GitHub→AWS, 액세스키 미저장) |
+| 보안(DevSecOps) | Trivy · SonarQube · GitGuardian · Hadolint · Codecov · Syft(SBOM) · Dependabot · pre-commit |
 
-## 7. 인프라 개요 (Infrastructure Overview)
+---
 
-- **VPC** 안에 2개 가용영역(AZ)의 **public/private 서브넷** 분리
-- 외부 트래픽은 **ALB**만 진입 → **private 서브넷의 ECS**로 전달 (직접 노출 없음)
-- **RDS·Redis는 private 서브넷**에 위치, 보안그룹으로 ECS에서만 접근 허용
-- private 서브넷의 아웃바운드는 **NAT Gateway** 경유
-- 인프라 전체가 **Terraform 코드**로 정의 (재현 가능)
+## 🏗️ 아키텍처 (개요)
 
-상세: **[INFRASTRUCTURE.md](./INFRASTRUCTURE.md)**
+```
+[ Next.js + Kakao Map ]  (CloudFront + S3)
+        │ REST
+        ▼
+[ ALB ] → [ FastAPI on ECS Fargate ]
+   │            ├──── [ Amazon RDS for PostgreSQL + PostGIS ]  (보호소/강아지/이력/신고)
+   │            ├──── [ Amazon ElastiCache (Redis) ]           (오늘의 공고/지역 카운트 캐싱)
+   │            └──── [ Amazon Bedrock ]                        (신고 분류 · 요약)
+   │
+   └──── [ Amazon S3 ]  (신고 이미지)
 
-## 8. CI/CD 파이프라인
+[ GitHub Actions ] → Docker build → Amazon ECR → ECS Fargate (rolling deploy)
+```
 
-두 개의 독립된 GitHub Actions 파이프라인으로 운영합니다.
+> 🚀 **실제 AWS 배포 검증 완료** — `terraform apply`로 39개 리소스(VPC~RDS)를 생성하고
+> ALB 주소에서 `/api/v1/dogs/today`가 정상 응답함을 확인했습니다. (비용 관리를 위해 데모 후 `destroy`)
+> 📐 상세 다이어그램·매핑표: [`INFRASTRUCTURE.md`](INFRASTRUCTURE.md)
 
-| 파이프라인 | 트리거 | 역할 |
+---
+
+## 🔁 배포 & 운영 (GitOps)
+
+배포는 **두 개의 GitHub Actions 파이프라인**으로 자동화되어 있습니다.
+
+| 파이프라인 | 트리거 | 하는 일 |
 |---|---|---|
-| **앱 배포** (`deploy`) | main 푸시 | 빌드 → 보안스캔(Trivy) → SBOM → ECR push → ECS 롤링 배포 |
-| **인프라** (`infra`, GitOps) | PR / 머지 | PR에 `terraform plan` 코멘트 → 머지 시 `apply` |
+| `deploy.yml` (앱) | main 푸시 | Docker 빌드 → Trivy 스캔 → SBOM → OIDC 인증 → ECR push → ECS 롤링 배포 |
+| `infra.yml` (인프라) | PR / main 머지 | **PR에 `terraform plan` 코멘트** → 머지 시 `terraform apply` |
 
-상세: **[CI-CD.md](./CI-CD.md)**
+- **OIDC 키리스 인증** — 액세스키를 저장하지 않고, 앱용/인프라용 **역할을 분리**(최소 권한).
+- **원격 상태** — Terraform state를 S3 + DynamoDB(잠금)로 공유.
+- **비용 전략** — 평소 `terraform destroy`로 내려두고 필요할 때 `apply`로 5분 만에 재현.
 
-## 9. 보안 (Security)
+> 자세한 흐름과 용어는 [아키텍처 문서](ARCHITECTURE.md)와 [`INFRASTRUCTURE.md`](INFRASTRUCTURE.md) · [`CI-CD.md`](CI-CD.md) 참고.
 
-- **OIDC 키리스 인증** — 장기 액세스키를 저장하지 않음
-- **역할 분리(최소 권한)** — 앱 배포용 / 인프라 관리용 IAM 역할 분리
-- **Secrets Manager** — DB 접속정보를 런타임에 주입 (코드/이미지에 미포함)
-- **네트워크 격리** — DB/캐시는 private 서브넷, 보안그룹 체인으로 접근 제한
-- **이미지 취약점 스캔** — Trivy (HIGH/CRITICAL 발견 시 배포 차단)
-- **시크릿 누출 방지** — GitGuardian, pre-commit, `.gitignore`
-- **공급망 가시성** — Syft로 SBOM 생성
+---
 
-## 10. 관측성 (Monitoring)
-
-- **CloudWatch Logs** — 컨테이너 stdout 중앙 수집 (보존 14일)
-- **Container Insights** — ECS 리소스 메트릭
-- **ALB Health Check** — `/api/v1/health` 기반 헬스 판정
-- 🟡 *대시보드·알람·SLO·분산 트레이싱은 [ROADMAP](./ROADMAP.md)에서 강화 중*
-
-## 11. 문서 폴더 구조 (Documentation Only)
+## 📁 폴더 구조
 
 ```
-pawtrace-docs/
-├─ README.md              # 이 파일 (허브)
-├─ ARCHITECTURE.md        # 시스템 아키텍처
-├─ INFRASTRUCTURE.md      # AWS 인프라
-├─ CI-CD.md               # 파이프라인
-├─ DECISIONS.md           # 기술 의사결정 기록 (ADR)
-├─ TROUBLESHOOTING.md     # 트러블슈팅 사례
-├─ FEATURES.md            # 제품 기능
-├─ ROADMAP.md             # 강화 로드맵
-├─ IMPLEMENTATION-PLAN.md # MVP 실행 로드맵 + 스프린트 보드
-├─ assets/                # 스크린샷·이미지
-└─ diagrams/              # 다이어그램 소스
+pawtrace/
+├─ backend/                FastAPI (Clean Architecture, 시드 데이터로 즉시 동작)
+│  └─ app/{core,domain,schemas,models,repositories,services,api/v1,integrations}
+├─ frontend/               Next.js 스캐폴드 (src/{app,components,lib,styles})
+├─ infra/terraform/        AWS IaC ✅ 배포 검증 완료
+│  ├─ bootstrap/           1회: OIDC·배포 역할·ECR·tfstate(S3/DynamoDB)
+│  └─ *.tf                 VPC·ALB·ECS·RDS·ElastiCache·S3 (메인 인프라)
+├─ docs/
+│  ├─ LEARNING.md          📘 전체 구조 학습 가이드(용어 풀이·면접 Q&A)
+│  ├─ PRD.md               제품 요구사항·API 명세
+│  ├─ architecture/        AWS 인프라·CI/CD 다이어그램
+│  └─ prototype/           UI 프로토타입(api.js로 실제 API 연결)
+├─ .github/workflows/      ci.yml · deploy.yml(앱) · infra.yml(인프라 GitOps)
+├─ docker-compose.yml      api + PostGIS + Redis
+└─ .pre-commit-config.yaml
 ```
 
-> 🔒 소스 코드, 비즈니스 로직, 시크릿, 환경변수, 엔드포인트는 이 저장소에 **포함하지 않습니다.**
+---
 
-## 12. 나의 역할 (My Responsibilities)
+## 🚀 로컬 실행 방법
 
-이 프로젝트는 **1인 개발**로, 기획부터 배포까지 전 과정을 직접 수행했습니다.
+```bash
+# 1. 저장소 클론
+git clone https://github.com/ggaeun324-wq/pawtrace.git
+cd pawtrace
 
-- ☁️ **클라우드 아키텍처 설계** — VPC/서브넷/보안그룹/IAM 전체 설계
-- 🏗️ **IaC 구축** — Terraform으로 전 인프라 코드화 + remote state 구성
-- 🔁 **CI/CD 파이프라인 구축** — 앱 배포 + 인프라 GitOps, OIDC 키리스 인증
-- 🔐 **DevSecOps** — 이미지 스캔/SBOM/시크릿 스캔/품질 게이트 통합
-- 🐳 **컨테이너화** — multi-stage Dockerfile, 비루트 실행, 헬스체크
-- 🧩 **백엔드 설계** — Clean Architecture 기반 API 설계
-- 📝 **문서화** — 아키텍처·의사결정·운영 문서 작성
+# 2. 환경변수 설정 (.env.example 복사 후 값 입력)
+cp backend/.env.example backend/.env
 
-## 13. 도전과 해결 (Challenges & Solutions)
+# 3. Docker로 전체 스택 실행 (api + postgis + redis)
+docker compose up --build
 
-대표 사례 (전체는 **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)**):
+# 4. 접속
+# - API 문서:   http://localhost:8000/docs
+# - 헬스체크:   http://localhost:8000/api/v1/health
+```
 
-| 도전 | 해결 |
+> 💡 DB 없이도 백엔드는 **시드 데이터로 즉시 응답**합니다(`docker compose up` 또는 `uvicorn app.main:app`).
+> 🔐 API 키·DB 비밀번호 등 민감한 값은 모두 `.env`(환경변수)로 분리하며 저장소에 커밋하지 않습니다.
+
+---
+
+## 🗓️ 개발 로드맵 (4주 MVP)
+
+| 주차 | 목표 |
 |---|---|
-| GitHub Actions에서 AWS 장기 키 노출 위험 | **OIDC 키리스 인증**으로 전환, 역할 분리 |
-| 배포용/인프라용 권한이 한 역할에 과집중 | **2-역할 분리**(최소 권한) 설계 |
-| Terraform state 폴더 혼선으로 리소스 중복 생성 위험 | **remote state(S3+DynamoDB Lock)** 도입, "state는 단일 진실원천" 원칙 확립 |
-| 로컬 CLI 설치 후에도 "명령어 인식 불가" | 프로세스 시작 시점 **PATH 로딩** 메커니즘 이해 → 환경 재시작으로 해결 |
-| 프론트엔드↔API **CORS** 차단 | 허용 오리진을 환경변수로 분리·주입 |
+| 1주차 | 기획 · DB(PostGIS) · 기본 조회 API · Docker 로컬 구동 |
+| 2주차 | 지도 · 보호소 검색 · 강아지 이력 타임라인 |
+| 3주차 | 신고 · 관리자 검증 · 신뢰도 반영 · AI 분류 |
+| 4주차 | GitHub Actions CI/CD · AWS(ECS Fargate) 배포 · 문서 정리 ✅ |
 
-## 14. 배운 점 (Lessons Learned)
+> ✅ 4주차(인프라/CI-CD/배포)는 **Terraform IaC + GitOps 파이프라인 + 실배포 검증**까지 완료했습니다.
 
-- **IaC는 "문서이자 실행물"** — 인프라를 코드로 관리하니 재현·리뷰·롤백이 가능해짐
-- **키리스(OIDC)가 표준** — 자격증명을 "저장"하지 않는 설계가 보안의 출발점
-- **state가 진실의 원천** — Terraform에서 가장 조심해야 할 것은 코드가 아니라 state
-- **보안은 파이프라인에 내장(Shift-Left)** — 사람이 기억하는 대신 게이트가 강제
-- **비용 인식** — 평소 `destroy`, 필요 시 5분 `apply`로 재현하는 운영 전략
+진행 상황은 [Issues](https://github.com/ggaeun324-wq/pawtrace/issues)와 [Milestones](https://github.com/ggaeun324-wq/pawtrace/milestones)에서 확인할 수 있습니다.
 
-## 15. 향후 개선 (Future Improvements)
+---
 
-SRE/Cloud 역량 강화에 초점을 둔 로드맵 (상세 **[ROADMAP.md](./ROADMAP.md)**):
+## 🤝 기여 & 윤리 원칙
 
-- 📊 **관측성** — CloudWatch 대시보드 + 알람 + SLO/SLI + 분산 트레이싱(OTel→X-Ray)
-- 📈 **오토스케일링** + **k6 부하테스트**로 용량 검증
-- 🔵 **Blue/Green 무중단 배포** + 자동 롤백
-- 🔒 **HTTPS(ACM) + WAF**
-- 🧱 **Terraform 모듈화** + **Infracost**(PR 비용 코멘트) + **multi-env**(dev/stg/prod)
+- 본 서비스의 신뢰도 점수는 **참고용 투명성 지표**이며 법적 판단이 아닙니다.
+- 신고는 즉시 공개 반영되지 않고 **관리자 검증 후** 반영됩니다.
+- 개인정보는 최소 수집하며, 업로드 이미지의 위치정보(EXIF)는 제거합니다.
 
 ---
 
 <div align="center">
 
-**PawTrace** · *Know where every paw begins.* 🐾
-
-이 문서는 실제 구현(소스 비공개)을 기반으로 작성되었습니다.
+*Made with 🐾 for a more transparent adoption culture.*
 
 </div>
