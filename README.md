@@ -166,6 +166,63 @@ docker compose up --build
 
 ---
 
+## 🔐 보안 (Security)
+
+- **OIDC 키리스 인증** — 장기 액세스키를 저장하지 않음
+- **역할 분리(최소 권한)** — 앱 배포용 / 인프라 관리용 IAM 역할 분리
+- **Secrets Manager** — DB 접속정보를 런타임에 주입 (코드/이미지에 미포함)
+- **네트워크 격리** — DB/캐시는 private 서브넷, 보안그룹 체인으로 접근 제한
+- **이미지 취약점 스캔** — Trivy (HIGH/CRITICAL 발견 시 배포 차단)
+- **시크릿 누출 방지** — GitGuardian, pre-commit, `.gitignore`
+- **공급망 가시성** — Syft로 SBOM 생성
+
+---
+
+## 📈 관측성 (Monitoring)
+
+- **CloudWatch Logs** — 컨테이너 stdout 중앙 수집 (보존 14일)
+- **Container Insights** — ECS 리소스 메트릭
+- **ALB Health Check** — `/api/v1/health` 기반 헬스 판정
+- 🟡 대시보드·알람·SLO·분산 트레이싱은 [ROADMAP](ROADMAP.md) 에서 강화 중
+
+---
+
+## 🧗 도전과 해결 (Challenges & Solutions)
+
+대표 사례 (전체는 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)):
+
+| 도전 | 해결 |
+|---|---|
+| GitHub Actions에서 AWS 장기 키 노출 위험 | **OIDC 키리스 인증**으로 전환, 역할 분리 |
+| 배포용/인프라용 권한이 한 역할에 과집중 | **2-역할 분리(최소 권한)** 설계 |
+| Terraform state 폴더 혼선으로 리소스 중복 생성 위험 | **remote state(S3+DynamoDB Lock)** 도입, "state는 단일 진실원천" 원칙 확립 |
+| 로컬 CLI 설치 후에도 "명령어 인식 불가" | 프로세스 시작 시점 **PATH 로딩** 메커니즘 이해 → 환경 재시작으로 해결 |
+| 프론트엔드↔API **CORS** 차단 | 허용 오리진을 환경변수로 분리·주입 |
+
+---
+
+## 🎓 배운 점 (Lessons Learned)
+
+- **IaC는 "문서이자 실행물"** — 인프라를 코드로 관리하니 재현·리뷰·롤백이 가능해짐
+- **키리스(OIDC)가 표준** — 자격증명을 "저장"하지 않는 설계가 보안의 출발점
+- **state가 진실의 원천** — Terraform에서 가장 조심해야 할 것은 코드가 아니라 state
+- **보안은 파이프라인에 내장(Shift-Left)** — 사람이 기억하는 대신 게이트가 강제
+- **비용 인식** — 평소 `destroy`, 필요 시 5분 `apply` 로 재현하는 운영 전략
+
+---
+
+## 🚀 향후 개선 (Future Improvements)
+
+SRE/Cloud 역량 강화에 초점을 둔 로드맵 (상세 [ROADMAP.md](ROADMAP.md)):
+
+- 📊 **관측성** — CloudWatch 대시보드 + 알람 + SLO/SLI + 분산 트레이싱(OTel→X-Ray)
+- 📈 **오토스케일링** + k6 부하테스트로 용량 검증
+- 🔵 **Blue/Green 무중단 배포** + 자동 롤백
+- 🔒 **HTTPS(ACM)** + WAF
+- 🧩 **Terraform 모듈화** + Infracost(PR 비용 코멘트) + multi-env(dev/stg/prod)
+
+---
+
 ## 🤝 기여 & 윤리 원칙
 
 - 본 서비스의 신뢰도 점수는 **참고용 투명성 지표**이며 법적 판단이 아닙니다.
