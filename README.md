@@ -99,6 +99,7 @@ PawTrace는 **목록이 아니라 "이력과 신뢰"** 를 보여줍니다.
 | `infra.yml` (인프라) | PR / main 머지 | **PR에 `terraform plan` 코멘트** → 머지 시 `terraform apply` |
 
 - **OIDC 키리스 인증** — 액세스키를 저장하지 않고, 앱용/인프라용 **역할을 분리**(최소 권한).
+- **배포 전략** — **ECS 롤링 업데이트**(새 태스크를 최대 200%까지 먼저 기동 후 기존 교체 → `desired_count=1`에서도 무중단) + **서킷브레이커 자동 롤백**(안정화 실패 시 직전 정상 버전 복구).
 - **원격 상태** — Terraform state를 S3 + DynamoDB(잠금)로 공유.
 - **비용 전략** — 평소 `terraform destroy`로 내려두고 필요할 때 `apply`로 5분 만에 재현.
 
@@ -217,7 +218,7 @@ SRE/Cloud 역량 강화에 초점을 둔 로드맵 (상세 [ROADMAP.md](ROADMAP.
 
 - 📊 **관측성** — CloudWatch 대시보드 + 알람 + SLO/SLI + 분산 트레이싱(OTel→X-Ray)
 - 📈 **오토스케일링** + k6 부하테스트로 용량 검증
-- 🔵 **Blue/Green 무중단 배포** + 자동 롤백
+- 🔵 **Blue/Green 무중단 배포**(CodeDeploy) — *현재는 롤링 업데이트 + 자동 롤백 적용, 향후 확장 옵션*
 - 🔒 **HTTPS(ACM)** + WAF
 - 🧩 **Terraform 모듈화** + Infracost(PR 비용 코멘트) + multi-env(dev/stg/prod)
 
