@@ -111,37 +111,55 @@ erDiagram
     SHELTER ||--o{ DOG : "보유"
     DOG ||--o{ TIMELINE_EVENT : "이력"
     DOG ||--o{ REPORT : "신고 대상"
-    SHELTER ||--o{ REPORT : "신고 대상"
+    USER ||--o{ ADOPTION_APPLICATION : "입양 신청"
+    DOG ||--o{ ADOPTION_APPLICATION : "신청 대상"
+    USER ||--o{ ADOPTION : "입양 성사"
+    USER ||--o{ JOURNEY_ENTRY : "반려생활 기록"
+    USER ||--o{ ACADEMY_COMPLETION : "교육 수료"
+    USER ||--o{ ORDER : "주문"
+    USER ||--o{ CART : "장바구니"
+    ORDER ||--o{ ORDER_ITEM : "상세"
+    PRODUCT ||--o{ ORDER_ITEM : "품목"
+    JOURNEY_ENTRY ||--o| COUPON : "기록 보상"
 
     SHELTER {
         id PK
         name
         region
-        is_gov_registered
         transparency_level
     }
     DOG {
         id PK
-        name
         breed_label
         adoption_status
+        protect_end_date
     }
-    TIMELINE_EVENT {
+    USER {
         id PK
-        event_type
-        event_date
-        source
+        email
+        role
     }
-    REPORT {
+    ORDER {
         id PK
-        status
-        category
+        total_amount
+        donation_amount
+    }
+    PRODUCT {
+        id PK
+        price
+        stock
+        donation_rate
     }
 ```
 
-- **투명성 지표(transparency_level)** 는 보호소 **정보의 완전성/검증 상태**를 나타내며,
-  강아지를 평가하거나 업체를 단정하지 않습니다.
-- 위치 검색은 **PostGIS**(공간 인덱스)를 활용하도록 설계.
+**세 개의 축으로 도메인이 확장되어 있습니다.**
+- **투명성/입양** — 보호소·강아지·이력·신고 + 회원 기반 **입양 신청 → 입양 성사**
+- **입양 이후** — Family Journey(분기별 반려생활 기록·응원) · PawTrace Academy(교육/퀴즈/수료 배지)
+- **커머스** — 상품·재고·장바구니·주문·쿠폰. 판매액 일부가 **보호소 후원(donation_rate)** 으로 적립
+
+> - **투명성 지표(transparency_level)** 는 보호소 정보의 완전성/검증 상태를 나타내며, 강아지를 평가하거나 사람을 점수화하지 않습니다.
+> - 위치 검색은 **PostGIS**(공간 인덱스)를 활용하도록 설계.
+> - 장바구니는 세션이 바뀌어도 유지돼야 해 **PostgreSQL에 영속 저장**(주문/재고와 같은 DB → 트랜잭션 정합성). 이유는 [DECISIONS](./DECISIONS.md) 참고.
 
 ## 6. 무상태 & 확장 전략
 
@@ -154,10 +172,13 @@ erDiagram
 
 | 구성 | 현재 | 목표 |
 |---|---|---|
-| 데이터 소스 | 시드 데이터(즉시 동작) | RDS PostgreSQL + PostGIS |
-| 실행 | 단일 태스크 | 오토스케일링(2~N) |
-| 트래픽 | HTTP(80) | HTTPS(443) + WAF |
+| 데이터 소스 | 시드 데이터(즉시 동작) + RDS PostgreSQL(+PostGIS) | 다중 환경 DB |
+| 실행 | 단일 태스크 + 자동 롤백(서킷브레이커) | 오토스케일링(2~N) |
+| 트래픽 | **HTTPS(443/ACM 조건부) + WAF v2** | 상시 인증서 + Route53 도메인 |
 | 환경 | 단일 | dev / staging / prod 분리 |
+
+> 참고: HTTPS·WAF·VPC 엔드포인트·앱 시크릿은 **이미 IaC에 반영**되어 있습니다([INFRASTRUCTURE](./INFRASTRUCTURE.md)).
+> 남은 것은 도메인/인증서 상시화와 환경 분리입니다.
 
 ## 8. 추천 스크린샷 📸
 

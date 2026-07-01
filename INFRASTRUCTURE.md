@@ -14,10 +14,13 @@
 | **가용영역** | 2 AZ (고가용성 기반) |
 | **컴퓨트** | ECS Fargate (서버리스 컨테이너) |
 | **DB** | RDS PostgreSQL 16 (+ PostGIS) |
-| **캐시** | ElastiCache Redis 7 |
+| **캐시** | ElastiCache Redis 7 (전송 구간 TLS) |
 | **스토리지** | S3 (이미지) |
+| **엣지 방어** | AWS WAF v2 (ALB 앞단, 관리형 규칙 + rate limit) |
+| **전송 보안** | ALB HTTPS/TLS 1.3 (ACM) + HTTP→HTTPS 리다이렉트 |
+| **프라이빗 접근** | VPC 엔드포인트 (S3·Secrets·ECR·Logs) |
 | **AI** | Amazon Bedrock (managed LLM) 🟡 연동 설계 |
-| **시크릿** | Secrets Manager |
+| **시크릿** | Secrets Manager (DB URL + 앱 시크릿 JSON) |
 | **레지스트리** | Amazon ECR |
 | **IaC** | Terraform (S3 + DynamoDB remote state) |
 
@@ -62,14 +65,18 @@ flowchart TB
 ## 3. 트래픽 흐름 (Ingress)
 
 ```
-인터넷 → IGW → ALB(80) → Target Group → ECS Task(8000)
-                              │
-                              └─ Health Check: GET /api/v1/health (200 기대)
+인터넷 → IGW → [AWS WAF v2] → ALB(443/TLS1.3) → Target Group → ECS Task(8000)
+                                    │
+                                    ├─ HTTP(80) → HTTPS(443) 301 리다이렉트
+                                    └─ Health Check: GET /api/v1/health (200 기대)
 ```
 
+- 인터넷 트래픽은 ALB에 닿기 전에 **WAF v2**를 먼저 통과 (아래 §4-1)
 - ALB는 **헬스체크를 통과한 태스크에만** 트래픽 분배
 - Target type = `ip` (Fargate `awsvpc` 네트워크 모드)
-- 🟡 현재 HTTP(80). HTTPS(443/ACM)는 [ROADMAP](./ROADMAP.md)에서 추가 예정
+- **HTTPS/TLS 1.3**: ACM 인증서가 주입되면 443 리스너가 활성화되고 80은 HTTPS로 301 리다이렉트
+  (도메인/인증서 준비 전에는 안전하게 80 포워딩으로 동작 — IaC가 조건부로 토글)
+- **HTTP 요청 스머글링 완화**: ALB `drop_invalid_header_fields = true`로 유효하지 않은 헤더 제거
 
 ## 4. 보안 그룹 체인 (최소 권한)
 
@@ -77,20 +84,51 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    NET([0.0.0.0/0]) -->|80| ALBSG[ALB SG]
+    WAF([AWS WAF v2]) -->|필터링| ALBSG[ALB SG]
+    NET([0.0.0.0/0]) -->|80/443| WAF
     ALBSG -->|8000| ECSSG[ECS SG]
     ECSSG -->|5432| RDSSG[RDS SG]
     ECSSG -->|6379| REDISSG[Redis SG]
+    ECSSG -->|443| VPCESG[VPC Endpoint SG]
 ```
 
 | 보안 그룹 | 인바운드 허용 | 출처 |
 |---|---|---|
-| ALB SG | 80 | 인터넷 |
+| ALB SG | 80 / 443 | 인터넷 (WAF 통과분) |
 | ECS SG | 8000 | **ALB SG에서만** |
 | RDS SG | 5432 | **ECS SG에서만** |
 | Redis SG | 6379 | **ECS SG에서만** |
+| VPC Endpoint SG | 443 | **ECS SG에서만** |
 
 > 포인트: IP가 아니라 **보안그룹 참조**로 허용 → 스케일링/IP 변경에도 규칙이 깨지지 않음.
+
+## 4-1. 엣지 방어 — AWS WAF v2 🛡️
+
+인터넷에 노출된 **ALB 앞단**에 WAF를 붙여 L7(애플리케이션 계층) 공격을 걸러냅니다.
+
+| 규칙 | 종류 | 막아내는 것 |
+|---|---|---|
+| **AWSCommonRules** | AWS 관리형 | SQLi·XSS·LFI 등 광범위한 웹 취약점(OWASP 유사) |
+| **AWSKnownBadInputs** | AWS 관리형 | 알려진 악성 페이로드/취약 경로 |
+| **RateLimit** | Rate-based | 같은 IP의 5분 창 요청 폭주(무차별 로그인·스크래핑) 차단 |
+
+> **왜 관리형 규칙?** 1인 개발이 SQLi/XSS 패턴을 직접 관리하는 대신, AWS가 유지보수하는
+> 규칙셋을 사용해 **적은 운영 부담으로 넓은 방어면**을 확보했습니다.
+> 모든 규칙은 CloudWatch 메트릭으로 관측 가능하게 설정했습니다.
+
+## 4-2. VPC 엔드포인트 — 프라이빗 경로 🔒
+
+ECS 태스크가 AWS 서비스에 붙을 때 **공용 인터넷(NAT)을 타지 않고 VPC 내부로** 접근하게 합니다.
+**경계 축소(보안)** 와 **NAT 데이터 처리료 절감(비용)** 을 동시에 얻습니다.
+
+| 엔드포인트 | 유형 | 용도 |
+|---|---|---|
+| S3 | Gateway (무료) | 이미지 + ECR 이미지 레이어 pull 경로 |
+| Secrets Manager | Interface | 런타임 시크릿 조회 |
+| ECR (api·dkr) | Interface | 컨테이너 이미지 pull |
+| CloudWatch Logs | Interface | 로그 전송 |
+
+> 인터페이스 엔드포인트는 전용 SG로 **ECS에서 오는 443만** 허용합니다.
 
 ## 5. 데이터 계층
 
@@ -99,10 +137,12 @@ flowchart LR
 - **저장 시 암호화(at-rest)** 활성화
 - `publicly_accessible = false` (인터넷 비노출)
 - 위치 검색을 위한 **PostGIS** 확장 사용 설계
+- **삭제 방지(deletion protection)** 변수로 토글 — 운영은 `true`, 포트폴리오 teardown 편의로 기본 `false`
 - 🟡 운영 전환 시: 자동 백업·최종 스냅샷·Multi-AZ 적용 ([ROADMAP](./ROADMAP.md))
 
 ### ElastiCache Redis
 - private 서브넷, ECS에서만 접근
+- **전송 구간 암호화(TLS)** 활성화 → 앱은 `rediss://`로 접속
 - 캐싱/임시 상태 외부화 → 앱 무상태 유지
 
 ### S3
@@ -152,8 +192,9 @@ flowchart LR
 **설계 포인트**
 - **권한**: ECS **태스크 역할**에 `bedrock:InvokeModel` 권한이 부여되어 있어,
   컨테이너가 **키 없이 IAM 역할만으로** Bedrock을 호출 (액세스키 미사용).
+  권한 리소스는 `*`이 아니라 **리전 내 파운데이션 모델 ARN으로 범위 축소**(최소 권한).
 - **네트워크**: Bedrock은 VPC 외부의 **리전 관리형 서비스** → private 서브넷의 ECS가
-  **NAT Gateway**(또는 향후 VPC Endpoint)를 통해 AWS API로 접근.
+  **NAT Gateway**를 통해 AWS API로 접근.
 - **격리**: 애플리케이션은 AI 호출을 **Integrations 레이어(어댑터)** 로 감싸,
   제공자(Bedrock ↔ OpenAI 등)를 **교체 가능**하게 설계 ([ARCHITECTURE](./ARCHITECTURE.md) 참고).
 - **모델 선택**: 모델 ID는 **환경변수**로 주입 → 코드 수정 없이 모델 교체 가능.
@@ -171,14 +212,24 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    TF[Terraform] -->|DB URL 생성·저장| SM[Secrets Manager]
-    SM -->|런타임 주입| ECS[ECS Task 환경변수]
-    APP[앱 코드] -. 평문 미포함 .-> SM
+    TF[Terraform] -->|DB URL 생성·저장| SM1[Secrets Manager<br/>database-url]
+    TF -->|JWT 랜덤 생성 + API키/관리자 비번| SM2[Secrets Manager<br/>app-secrets JSON]
+    SM1 -->|런타임 주입| ECS[ECS Task 환경변수]
+    SM2 -->|키별 개별 주입| ECS
+    APP[앱 코드] -. 평문 미포함 .-> SM1
 ```
 
-- DB 접속 URL은 **코드/이미지에 없음** → Secrets Manager에 저장
-- ECS 태스크가 **시작 시점에 환경변수로 주입**받음
-- 실행 역할에는 **해당 시크릿 1개만** 읽을 권한 부여
+시크릿을 **두 개**로 나눠 관리합니다.
+
+| 시크릿 | 내용 | 생성 방식 |
+|---|---|---|
+| `database-url` | DB 접속 URL | Terraform이 RDS 엔드포인트로 조합 |
+| `app-secrets` (JSON) | `JWT_SECRET` · `KAKAO_REST_API_KEY` · `PUBLIC_DATA_API_KEY` · `ADMIN_PASSWORD` | JWT는 강한 랜덤 자동 생성, 나머지는 변수 주입 |
+
+- 민감값은 **코드/이미지에 없음** → Secrets Manager에 저장
+- ECS 태스크가 **시작 시점에** 주입받음. app-secrets는 `valueFrom "<arn>:<jsonKey>::"` 문법으로 **필요한 키만** 컨테이너에 들어감
+- 실행 역할에는 **이 두 시크릿만** 읽을 권한 부여
+- 외부 API 키가 비어 있으면 앱은 **stub/데모 모드로 안전하게 동작** (배포 실패 없음)
 
 ## 9. 상태 관리 (Terraform Remote State)
 
@@ -208,7 +259,9 @@ flowchart LR
 
 ## 11. 검증된 사실 ✅
 
-- `terraform apply`로 **약 39개 리소스**(VPC~RDS)를 일괄 생성
+- `terraform apply`로 **약 39개 리소스**(VPC~RDS)를 일괄 생성 (초기 코어 인프라)
+- 이후 **보안 강화(Tier 1~2)** 로 WAF·VPC 엔드포인트·HTTPS(조건부)·앱 시크릿·Redis TLS·
+  배포 서킷브레이커를 코드에 추가 → 리소스 수는 그 이상으로 증가
 - ALB 주소에서 API 엔드포인트가 정상 응답함을 확인
 - 비용 관리를 위해 데모 후 `destroy`
 

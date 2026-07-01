@@ -11,7 +11,9 @@
 
 - VPC 2-AZ 네트워크 격리, 보안그룹 체인 (최소 권한)
 - ECS Fargate + Container Insights, IAM 역할 4종 분리
-- RDS(암호화·비공개) + ElastiCache + S3 + Secrets Manager
+- RDS(암호화·비공개·삭제방지 토글) + ElastiCache(TLS) + S3 + Secrets Manager(DB URL + 앱 시크릿)
+- **엣지/전송 보안**: AWS WAF v2(관리형 규칙+rate limit) · ALB HTTPS/TLS1.3(ACM 조건부) · VPC 엔드포인트(S3·Secrets·ECR·Logs)
+- **배포 안전장치**: ECS 롤링 + 서킷브레이커 **자동 롤백**
 - Terraform IaC + Remote State(S3/DynamoDB Lock)
 - CI/CD: 앱 배포 + 인프라 GitOps, **OIDC 키리스**
 - DevSecOps 게이트: Trivy · SBOM · Hadolint · GitGuardian · SonarQube · Codecov
@@ -23,7 +25,7 @@
 | 관측성 | 로그·Insights | 대시보드·알람·SLO·트레이싱 없음 | **SRE** |
 | 확장성 | 고정 태스크 수 | 오토스케일링·부하검증 없음 | **SRE** |
 | 배포 | 롤링 + 자동 롤백(서킷브레이커) | Blue/Green(CodeDeploy)·카나리 없음 | **DevOps** |
-| 네트워크 보안 | HTTP·단일 NAT | HTTPS·WAF·NAT HA 없음 | **Cloud** |
+| 네트워크 보안 | **WAF·HTTPS·VPC엔드포인트 완료**, 단일 NAT | NAT HA·상시 도메인/인증서 없음 | **Cloud** |
 | IaC 성숙도 | 단일 환경 | 모듈화·multi-env·비용가시화 없음 | **Cloud** |
 | 복원력 | 기본 | 백업/DR 전략 미흡 | **SRE** |
 
@@ -68,15 +70,19 @@
 
 ## Phase 4 — 네트워크 보안 & 비용 (Security & Cost) 🔒
 
-| 작업 | 도구 | 면접 포인트 |
+| 작업 | 도구 | 상태 · 면접 포인트 |
 |---|---|---|
-| HTTPS | ACM + Route53 + ALB 443 | "TLS 종단, http→https 리다이렉트" |
-| 웹 방화벽 | AWS WAF | "SQLi·과도요청(rate limit) 차단" |
-| Terraform 모듈화 | TF modules | "재사용 가능한 IaC 설계" |
-| 비용 가시화 | **Infracost** | "PR에 변경 비용 코멘트" |
-| CDN | CloudFront | "정적 자산 엣지 캐싱" |
+| HTTPS | ACM + Route53 + ALB 443 | ✅ IaC 반영(인증서 주입 시 활성) · "TLS 종단, http→https 리다이렉트" |
+| 웹 방화벽 | AWS WAF | ✅ 완료 · "SQLi·과도요청(rate limit) 차단" |
+| VPC 엔드포인트 | S3/Secrets/ECR/Logs | ✅ 완료 · "NAT 우회로 경계 축소 + 비용 절감" |
+| 상시 도메인/인증서 | Route53 + ACM | 🟡 도메인 확보 후 상시화 |
+| NAT 고가용성 | AZ별 NAT | 🟡 단일 장애점 제거 |
+| Terraform 모듈화 | TF modules | 🟡 "재사용 가능한 IaC 설계" |
+| 비용 가시화 | **Infracost** | 🟡 "PR에 변경 비용 코멘트" |
+| CDN | CloudFront | 🟡 "정적 자산 엣지 캐싱" |
 
-**완료 기준**: HTTPS로 서비스 접근, PR에 예상 비용 코멘트 표시.
+**완료 기준(달성)**: WAF가 악성 요청을 차단하고, 인증서 주입 시 HTTPS로 서비스 접근.
+**남은 것**: 상시 도메인/인증서, NAT HA, IaC 모듈화, 비용 가시화.
 
 ---
 
