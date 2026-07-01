@@ -11,7 +11,7 @@
 
 <br/>
 
-![PawTrace 전체 탭 동작 흐름](assets/home-demo.gif)
+![PawTrace 전체 탭 동작 흐름](docs/home-demo.gif)
 
 *오늘의 친구 → 보호소 지도 → 해피ing → 입양 스토리(분기 타임라인) → 쇼핑몰 장바구니·결제 → 반려생활 기록 까지 실제 동작 흐름*
 
