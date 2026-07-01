@@ -9,6 +9,8 @@
 
 📘 **처음 보시나요? → [전체 구조 문서 (ARCHITECTURE.md)](ARCHITECTURE.md)** 에서 아키텍처 전체를 쉬운 용어로 설명합니다.
 
+🛡️ **SRE 관점(부하테스트·3-Tier 인프라·관측성·CI/CD·보안)이 궁금하시면 → [SRE-PORTFOLIO.md](SRE-PORTFOLIO.md)**
+
 <br/>
 
 ![PawTrace 홈 화면 동작 흐름](assets/home-demo.gif)
